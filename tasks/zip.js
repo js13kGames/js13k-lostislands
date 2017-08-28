@@ -4,20 +4,20 @@ const gulp      = require('gulp');
 const zip       = require('gulp-zip');
 const rename    = require('gulp-rename');
 const util      = require('gulp-util');
-const htmlmin   = require('gulp-htmlmin');
 const fs        = require('fs');
 
 module.exports = () => {
   gulp.task( 'zip', [ 'build', 'template' ], () => {
-    return gulp.src('./dist/index.min.html')
-      .pipe( htmlmin({ collapseWhitespace: true }) )
-      .pipe( rename('index.html') )
+    return gulp.src(['./public/index.min.html', './public/server.min.js', './public/shared.min.js'])
+      .pipe( rename(path=> {
+        path.basename = path.basename.replace('.min', '')
+      }))
       .pipe( zip('game.zip') )
-      .pipe( gulp.dest('dist') );
+      .pipe( gulp.dest('public') );
   });
 
   gulp.task( 'report', [ 'zip' ], done => {
-    fs.stat( './dist/game.zip', ( err, data ) => {
+    fs.stat( './public/game.zip', ( err, data ) => {
       if ( err ) {
         util.beep();
         return done( err );

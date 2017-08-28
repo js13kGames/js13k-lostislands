@@ -6,13 +6,14 @@ const fs          = require('fs');
 const srcmaps     = require('gulp-sourcemaps');
 const buffer      = require('vinyl-buffer');
 const source      = require('vinyl-source-stream');
+const htmlmin   = require('gulp-htmlmin');
 
 function getJS() {
-  return readFile('./dist/main.min.js');
+  return readFile('./public/main.min.js');
 }
 
 function getCSS() {
-  return readFile('./dist/main.css');
+  return readFile('./public/main.css');
 }
 
 function writeFile( fname, data ) {
@@ -38,7 +39,7 @@ function readFile( fname ) {
 }
 
 module.exports = () => {
-  gulp.task( 'template', [ 'build', 'css' ], done => {
+  gulp.task( 'complie', [ 'build', 'css' ], done => {
     let ctx = {};
 
     getJS()
@@ -51,15 +52,21 @@ module.exports = () => {
       let inlineResult = handlebars.compile( str )
         ({ js: ctx.js, css: ctx.css });
 
-      writeFile( './dist/index.min.html', inlineResult )
+      writeFile( './public/index.min.html', inlineResult )
       .then( () => {
         // development index file
         let result = handlebars.compile( str )();
-        return writeFile( './dist/index.html', result )
+        return writeFile( './public/index.html', result )
       })
       .then( done );
-      
+
     });
 
   });
+
+  gulp.task('template', ['complie'], ()=> {
+    return gulp.src('./public/index.min.html')
+      .pipe( htmlmin({ collapseWhitespace: true }) )
+      .pipe( gulp.dest('public') );
+  })
 };

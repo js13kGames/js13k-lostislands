@@ -1,0 +1,55 @@
+.upAndDown {
+  animation: kfUpAndDown 2s linear infinite alternate;
+}
+.popup{
+  animation: popup 0.5s;
+}
+.fadeInOut{
+  animation: fadeInOut 1s;
+}
+
+@keyframes kfUpAndDown {
+  from {
+    transform: translate(0,0);
+  }
+
+  to {
+    transform: translate(0,1em);
+  }
+}
+
+@keyframes fadeInOut {
+    0%{
+      opacity: 0
+    }
+
+    40%{
+      opacity: 1
+    }
+
+    60%{
+      opacity: 1
+    }
+
+    100%{
+      opacity: 0
+    }
+}
+
+@keyframes popup {
+  0%{
+    transform: scale(1);
+  }
+  50%{
+    transform: scale(1.2);
+  }
+  60%{
+    transform: scale(1.05);
+  }
+  70%{
+    transform: scale(1.1);
+  }
+  100%{
+    transform: scale(1);
+  }
+}

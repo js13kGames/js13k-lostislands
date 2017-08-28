@@ -8,7 +8,7 @@ module.exports = () => {
     return gulp.src( [ 'src/css/reset.css', 'src/css/**/*.css' ] )
       .pipe( concat('main.css') )
       .pipe( clean({ compatibility: 'ie8' }) )
-      .pipe( gulp.dest('./dist') )
+      .pipe( gulp.dest('./public') )
       .pipe( livereload() );
   });
 };
