@@ -21,6 +21,7 @@ class ClientApp{
     this.statusui = {}
     this.container = h('div', {className: 'game', width: this.width+'px', height: this.height+'px'})
     this.itemOpen = false
+    this.targetOpen = false
     //init
     this.initComm(socket)
     this.resize()
@@ -102,7 +103,7 @@ class ClientApp{
     this.character.el.hide();
 
     this.stage = stage(
-      this.game.lobby.env, //env
+      this.game.lobby, //env
       this.container, //container
       this.game.players, //players
       this.game.lobby.name
@@ -130,7 +131,6 @@ class ClientApp{
       this.game.players = p;
       console.log('change paleyrs', p)
       this.stage.changePlayers(this.game.players)
-
     })
 
     //game status
@@ -161,9 +161,13 @@ class ClientApp{
 
     this.socket.on('changeAttr', attrs=>{
       console.log('new attr', attrs)
+      let _attrs = attrs.by ? attrs.attrs : attrs
+      if(attrs.by){
+        this.stage.atk(attrs.by)
+      }
       this.controls.statusBox.empty()
-      if(attrs.hp < this.player.status.attrs.hp) this.stage.hurt()
-      this.player.status.attrs = attrs
+      if(_attrs.hp < this.player.status.attrs.hp) this.stage.hurt()
+      this.player.status.attrs = _attrs
       m(updateAttr(), this.controls.statusBox)
     })
   }
@@ -174,7 +178,7 @@ class ClientApp{
 
     //function action map
     let btnMap = ui.button('map')
-    this.map = ui.map(this.game.map, this.player.status.loc, (x,y)=>console.log('map:', x,'-', y))
+    this.map = ui.map(this.game.map, this.player.status.loc, this.game.boss)
 
     m(this.map.el)
     this.map.el.hide()
@@ -193,7 +197,8 @@ class ClientApp{
         }),
         i => this.emit('useitem', i),
         ()=>this.itemOpen = false,
-        'items'
+        'items',
+        this.itemOpen ? ' ' : false
       )
 
       m(el)
@@ -216,15 +221,69 @@ class ClientApp{
 
     this.socket.on('changeItems', updateItems)
 
+    //functional action attacks
+
+    const updateAtk = () => {
+      if(!this.player.status.place) return;
+      //get all monsters
+      //get all players beside current
+      this.targetable = this.player.status.place.monsters
+
+      let el = ui.pick(
+        'Chose Target',
+        this.targetable.map( target=> {
+          let str = `${target.info.name}: ${target.status.attrs.hp}/100`
+          let el = h('div', {className:'opt-item'}, str)
+          return el;
+        }),
+        i => this.emit('gameaction', {
+          id: 'atk',
+          loc: this.player.status.loc,
+          mid: i
+        }),
+        ()=> this.targetOpen = false,
+        'items',
+        this.targetOpen ? ' ' : false
+      )
+
+      m(el)
+      if(this.targetEl){
+        this.targetEl.parentNode.removeChild(this.targetEl)
+        this.targetEl = el;
+      }else{
+        this.targetEl = el;
+      }
+      if(!this.targetOpen) this.targetEl.hide()
+    }
+
+
+    let btnAtk = ui.button('attack')
+    btnAtk.click(()=>{
+      this.targetOpen = true;
+      this.targetEl.show()
+    })
+
+    this.socket.on('updatePlace', place=>{
+      console.log('update place', place)
+      this.player.status.place = place
+      updateAtk()
+      this.stage.changeStage(this.game, this.player)
+    })
+
     const updateBtns = (acts = []) => {
       //console.log('actions', acts)
       this.controls.actionBox.empty()
       const fnAct = {
-        'map': btnMap
+        'map': btnMap,
+        'atk': () => {
+          updateAtk()
+          return btnAtk
+        }
       }
 
       m(acts.map( act=>{
         if(act in fnAct){
+          if(typeof fnAct[act] === 'function') return fnAct[act]()
           return fnAct[act]
         }else{
           let btn = ui.button(act)

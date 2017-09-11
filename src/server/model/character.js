@@ -1,6 +1,7 @@
 import Item from './item';
 class Character{
-  constructor(user, time = 0, id = -1){
+  constructor(user, time = 0, id = -1, type = 'player'){
+    this.type = type
     this.id = id
     this.status = {
       nextTime: time,
@@ -13,7 +14,7 @@ class Character{
         luk: getRandom(3,4),
       },
       place: null,
-      items: ['map', new Item('hemlet', 0, 10), new Item('armor', 0, 10), new Item('axe', 0, 10)],
+      items: ['map'],
       loc: { x: -1, y: -1},
     }
 
@@ -43,7 +44,7 @@ class Character{
     let crit = getRandom(1,25) < this.attr().luk
     let dmg = ~~(this.attr().atk + getRandom(1,5) - p.attr().def)
 
-    p.status.attrs.hp = p.status.attrs.hp - dmg;
+    p.status.attrs.hp = p.status.attrs.hp - (dmg > 0 ? dmg:0);
 
     cb(p, this)
   }

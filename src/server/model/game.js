@@ -2,6 +2,7 @@ import Map from './map';
 import Place from './place';
 import Item from './item';
 import Character from './character';
+import Mosnter from './monster';
 /*
   game status = {
     0: open
@@ -16,7 +17,12 @@ console.log('items', ITEMS.data)
 
 class Game {
   constructor(emmiter, id){
-    this.map = new Map();
+    this.boss = {
+      x: getRandom(0,64),
+      y: getRandom(0,64),
+      mon: new Mosnter(10)
+    }
+    this.map = new Map(64, this.boss);
     this.id = id;
     this.maxPlayers = 4;
     this.events = emmiter;
@@ -24,6 +30,7 @@ class Game {
     this.status = 0;
     this.logs = []
     this.socket = null
+
     this.time = 0
     this.countdown = 5
     this.actions = {
@@ -55,9 +62,25 @@ class Game {
         act: pid=> this.changePlace(pid, this.players[pid], {x: this.players[pid].status.loc.x + 1})
       },
       atk: {
-        req: p=> p.status.nextTime < this.time,
-        act: pid=> {
-
+        req: p=> p.status.rdy && p.status.nextTime < this.time,
+        act: (pid, atk)=> {
+          let target = this.map.places[atk.loc.x][atk.loc.y].monsters[atk.mid]
+          this.players[pid].atk(target, ()=>{
+            console.log(target.status.attrs)
+            //if target dead drop all the items in the map
+            if(target.status.attrs.hp <= 0){
+              target.status.items.forEach(item=>{
+                if(typeof item !== 'string'){
+                  item.eq = false
+                  this.players[pid].status.items.push(item)
+                }
+              })
+              this.map.places[atk.loc.x][atk.loc.y].monsters = []
+            }
+            this.updatePlace(this.map.places[atk.loc.x][atk.loc.y])
+            this.changeAttr(pid, this.players[pid], pid)
+            this.changeItems(pid, this.players[pid])
+          })
         }
       }
     }
@@ -125,9 +148,19 @@ class Game {
           this.ai(m, p)
         })
 
+        //add recover
+        if(p.status.attrs.hp < 100) p.status.attrs.hp += 1
+        this.changeAttr(pid, p)
         //update available actions
         this.changeActions(pid)
       })
+
+      //check game end
+      if(this.boss.mon.status.attrs.hp <= 0){
+        this.eachPlayer((p, pid)=>{
+          this.comm('gg', `Congratuation! You won! Socre: ${this.time}`)
+        })
+      }
     }
 
     this.comm('gameinfo', {time: this.time})
@@ -143,7 +176,7 @@ class Game {
 
       if(p.status.attrs.hp <= 0) this.death(p, m);
       else {
-        this.changeAttr(p.id, p)
+        this.changeAttr(p.id, p, monster.id)
       }
     })
   }
@@ -153,7 +186,7 @@ class Game {
     this.log(`${p.info.name} is killed by ${by.info.name}`);
     this.removePlayer(p.id);
 
-    this.comm('gg', `Game Over! You are killed by ${by.info.name}`)
+    this.comm('gg', `Game Over! You are killed by ${by.info.name}`, p.id)
   }
 
   eachPlayer(cb){
@@ -164,6 +197,14 @@ class Game {
 
   comm(e, m, id){
     if(this.socket) this.socket.to(id || this.id).emit(e, m)
+  }
+
+  updatePlace(place){
+      this.eachPlayer((p, pid)=>{
+        if(p.status.place.x == place.x && p.status.place.y === place.y){
+          this.comm('updatePlace', place, pid)
+        }
+      })
   }
 
   changePlace(pid, p, loc){
@@ -197,6 +238,7 @@ class Game {
       lobby:　this.lobby,
       logs: this.logs,
       time: this.time,
+      boss: this.boss,
       players: Object.keys(this.players).map(i=>{
         return {
           id: i,
@@ -223,7 +265,7 @@ class Game {
     if(!this.socket) this.socket = user.socket.nsp
 
     this.players[user.id] = new Character(user, this.time, user.id)
-
+    this.players[user.id].status.items.push(new Item('sword', 0, 10))
     user.socket.join(this.id,()=> {
       this.log(`Player ${user.info.name} join the game.`);
     });
@@ -233,11 +275,14 @@ class Game {
     })
 
     user.socket.on('gameaction', act=>{
-      this.players[user.id].status.nextTime = this.time + (8 - this.players[user.id].attr().spd)
       if(typeof act === 'object'){
-        this.actions[act.id].act(user.id, act)
+        if(this.actions[act.id].req(this.players[user.id])) {
+          this.actions[act.id].act(user.id, act)
+          this.players[user.id].status.nextTime = this.time + (5 - this.players[user.id].attr().spd)
+        }
       }else{
         this.actions[act].act(user.id)
+        this.players[user.id].status.nextTime = this.time + (5 - this.players[user.id].attr().spd)
       }
     })
 
@@ -272,8 +317,15 @@ class Game {
 
   }
 
-  changeAttr(pid, p){
-    this.comm('changeAttr', p.attr(), pid)
+  changeAttr(pid, p, by=false){
+    if(by){
+      this.comm('changeAttr', {
+        by,
+        attrs:p.attr()
+      }, pid)
+    }else{
+      this.comm('changeAttr', p.attr(), pid)
+    }
   }
 
   changeItems(pid, p){

@@ -3,7 +3,8 @@ import Area from './area';
 import Place from './place';
 
 class Map {
-  constructor(size = 64){
+  constructor(size = 64, boss){
+    this.boss = boss;
     this.map = null;
     this.map_size = size
     this.areas = []
@@ -91,7 +92,7 @@ class Map {
     for (let x = 0; x < this.map_size; x++) {
       this.places[x] = []
       for( let y = 0; y < this.map_size; y++) {
-        this.places[x][y] = new Place(MAPS.areas[this.map[x][y]], null, x, y);
+        this.places[x][y] = new Place(MAPS.areas[this.map[x][y]], null, x, y, this.boss);
         if(!this.types[this.map[x][y]]){
           this.types[this.map[x][y]] = [this.places[x][y]]
         }else{

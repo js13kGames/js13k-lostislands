@@ -55,7 +55,12 @@ export const genSide = (setting, className= 'bottom') => {
     return floor;
 }
 
-export const stage = (env, gameContainer, players, name ="") => {
+export const stage = (place, gameContainer, players, name ="") => {
+  let env = place.env;
+  let loc = {
+    x: place.x,
+    y: place.y
+  }
   let playerEls = []
   let enemyEls = []
   let genBackEls = env => env.backEls.map( (elid, i)=> {
@@ -99,6 +104,7 @@ export const stage = (env, gameContainer, players, name ="") => {
       let $player = person(player.info, player.status.items, enemy)
       $player.scale(80)
       $player.changePos(pos.m[i + (enemy ? 3: 0)])
+      $player.__id = player.id
 
       if(enemy){
         enemyEls.push($player)
@@ -128,21 +134,43 @@ export const stage = (env, gameContainer, players, name ="") => {
   }
 
   function changeStage(game, player){
-      overlay.show()
-      setTimeout(()=>overlay.hide(), 1000)
-      //in game
-      el.empty()
-      el.$m(makeStage(player.status.place.env))
 
-      //change name
-      placeName.empty()
-      placeName.$m(objects.text(player.status.place.name))
+      console.log('change stage', loc, player.status.place.env)
+      if(player.status.place.x !== loc.x || player.status.place.y !== loc.y){
+        overlay.show()
+        setTimeout(()=>overlay.hide(), 1000)
+        loc = Object.assign({},{x:player.status.place.x, y: player.status.place.y})
+        //in game
+        el.empty()
+        el.$m(makeStage(player.status.place.env))
 
+        //change name
+        placeName.empty()
+        placeName.$m(objects.text(player.status.place.name))
+
+        //els
+        backEls.forEach(bEl=>gameContainer.removeChild(bEl))
+        backEls = genBackEls(player.status.place.env)
+        m(backEls, gameContainer)
+      }
+
+      enemyEls.forEach((p,i)=>{
+        gameContainer.removeChild(p.el)
+      })
+
+      enemyEls = [];
       mPlayers(player.status.place.monsters, true)
-      //els
-      backEls.forEach(bEl=>gameContainer.removeChild(bEl))
-      backEls = genBackEls(player.status.place.env)
-      m(backEls, gameContainer)
+
+
+  }
+
+  function atk(id){
+    playerEls.forEach((p,i)=>{
+      if(p.__id === id) p.atk()
+    })
+    enemyEls.forEach((p,i)=>{
+      if(p.__id === id) p.atk(true)
+    })
   }
 
 
@@ -154,6 +182,7 @@ export const stage = (env, gameContainer, players, name ="") => {
     hurt: ()=>{
       overlayDmg.show()
       setTimeout(()=>overlayDmg.hide(), 1000)
-    }
+    },
+    atk
   };
 }

@@ -73,6 +73,11 @@ export const person = (info, items = [], rev = false) => {
     character.style.top = pt[1]+'em'
   }
 
+  const atk = (rev) => {
+    character.className = `character ${rev?'rev':''} atk`
+    setTimeout(()=>character.className = `character ${rev?'rev':''}`, 500 )
+  }
+
   const scale = (p) => character.style.fontSize = p/100+'em'
 
   return {
@@ -82,6 +87,7 @@ export const person = (info, items = [], rev = false) => {
     height,
     updateInfo,
     scale,
-    changePos
+    changePos,
+    atk
   };
 }

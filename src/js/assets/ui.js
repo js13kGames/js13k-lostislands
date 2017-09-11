@@ -1,17 +1,17 @@
 import { h, m } from '../classes/dom.js';
 import objects from './object';
 
-const dialogInner = (c) => h('div', 'dialog-inner popup', c ? c : null)
-const dialog = (c) => {
+const dialogInner = (c, a) => h('div', `dialog-inner ${a}`, c ? c : null)
+const dialog = (c, a) => {
 
   let el = h('div', 'ui dialog')
-  el.$innerBox = dialogInner(c)
+  el.$innerBox = dialogInner(c, a || 'popup')
   m(el.$innerBox, el)
 
   return el;
 }
-const dialogWithButton = (title, content, cb, btns=[], btnTxt = "ok") =>{
-  let $el = dialog([objects.text(title)])
+const dialogWithButton = (title, content, cb, btns=[], btnTxt = "ok", a = false) =>{
+  let $el = dialog([objects.text(title)], a)
   if(btns.length > 0){
 
   }else{
@@ -33,7 +33,7 @@ const ask = (title, cb)=>{
   $input.change(e=>value=e.target.value)
   return dialogWithButton(title, $input, ()=>cb(value));
 }
-const pick = (title, options, onChange, cb, clz='') => {
+const pick = (title, options, onChange, cb, clz='', a = false) => {
   let pick = 0
 
   let $els = options.map( (option,i)=> {
@@ -46,7 +46,7 @@ const pick = (title, options, onChange, cb, clz='') => {
     return el
   })
 
-  return dialogWithButton(title, $els, ()=>cb(pick))
+  return dialogWithButton(title, $els, ()=>cb(pick), [], 'ok', a)
 }
 
 const controls = (onNewMsg) => {
@@ -96,7 +96,7 @@ const controls = (onNewMsg) => {
   }
 }
 
-const map = (mapData, pt)=>{
+const map = (mapData, pt, boss)=>{
 
   const { areas } = DATA.MAPS
   const elData = []
@@ -130,6 +130,8 @@ const map = (mapData, pt)=>{
 
     $detail.$m( $row );
   })
+
+  elData[boss.x][boss.y].className = 'map-node active'
 
   $detail.on('mouseout', ()=> $text.hide())
   let el = dialogWithButton('map', $map, ()=>el.hide())

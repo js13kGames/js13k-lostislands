@@ -192,7 +192,8 @@ class Item{
 }
 
 class Character{
-  constructor(user, time = 0, id = -1){
+  constructor(user, time = 0, id = -1, type = 'player'){
+    this.type = type
     this.id = id
     this.status = {
       nextTime: time,
@@ -205,7 +206,7 @@ class Character{
         luk: getRandom(3,4),
       },
       place: null,
-      items: ['map', new Item('hemlet', 0, 10), new Item('armor', 0, 10), new Item('axe', 0, 10)],
+      items: ['map'],
       loc: { x: -1, y: -1},
     }
 
@@ -235,7 +236,7 @@ class Character{
     let crit = getRandom(1,25) < this.attr().luk
     let dmg = ~~(this.attr().atk + getRandom(1,5) - p.attr().def)
 
-    p.status.attrs.hp = p.status.attrs.hp - dmg;
+    p.status.attrs.hp = p.status.attrs.hp - (dmg > 0 ? dmg:0);
 
     cb(p, this)
   }
@@ -250,22 +251,35 @@ class Monster extends Character {
         skin: 5,
         hair: 4
       }
-    })
+    }, 0, uuid(), 'monster')
+
+    this.status.items.push(new Item('hemlet', 0, epv), new Item('armor', 0, epv))
+    if(epv > 10) this.status.items.push(random([new Item('axe', 0, epv), new Item('sword', 0, epv)]))
 
     this.status.items.forEach(i=>{
       if(typeof i !== 'string') i.eq = true
     })
+
+    this.status.attrs.hp = epv * 2
   }
 }
 
 class Place {
-  constructor(type, name, x=-1, y=-1){
+  constructor(type, name, x=-1, y=-1, boss = false){
     //console.log(type)
     this.name = name || type[1]
     this.type = type || random(MAPS.areas)
     this.x = x;
     this.y = y;
-    this.monsters = [new Monster()]
+    this.monsters = [] //new Monster()
+    if(boss && this.x == boss.x && this.y == boss.y) {
+      this.monsters.push(boss.mon)
+      boss.mon.name = 'Black General'
+      console.log('boss', this.x, this.y)
+    }else{
+      let mon = random(this.type[5])
+      if(mon > -1)this.monsters.push(new Monster(mon))
+    }
     this.env = {
       back: random(this.type[7][0]),
       bottom: random(this.type[7][1]),
@@ -285,7 +299,8 @@ class Place {
 }
 
 class Map {
-  constructor(size = 64){
+  constructor(size = 64, boss){
+    this.boss = boss;
     this.map = null;
     this.map_size = size
     this.areas = []
@@ -373,7 +388,7 @@ class Map {
     for (let x = 0; x < this.map_size; x++) {
       this.places[x] = []
       for( let y = 0; y < this.map_size; y++) {
-        this.places[x][y] = new Place(MAPS.areas[this.map[x][y]], null, x, y);
+        this.places[x][y] = new Place(MAPS.areas[this.map[x][y]], null, x, y, this.boss);
         if(!this.types[this.map[x][y]]){
           this.types[this.map[x][y]] = [this.places[x][y]]
         }else{
@@ -454,7 +469,12 @@ console.log('items', ITEMS.data)
 
 class Game {
   constructor(emmiter, id){
-    this.map = new Map();
+    this.boss = {
+      x: getRandom(0,64),
+      y: getRandom(0,64),
+      mon: new Monster(10)
+    }
+    this.map = new Map(64, this.boss);
     this.id = id;
     this.maxPlayers = 4;
     this.events = emmiter;
@@ -462,6 +482,7 @@ class Game {
     this.status = 0;
     this.logs = []
     this.socket = null
+
     this.time = 0
     this.countdown = 5
     this.actions = {
@@ -493,9 +514,25 @@ class Game {
         act: pid=> this.changePlace(pid, this.players[pid], {x: this.players[pid].status.loc.x + 1})
       },
       atk: {
-        req: p=> p.status.nextTime < this.time,
-        act: pid=> {
-
+        req: p=> p.status.rdy && p.status.nextTime < this.time,
+        act: (pid, atk)=> {
+          let target = this.map.places[atk.loc.x][atk.loc.y].monsters[atk.mid]
+          this.players[pid].atk(target, ()=>{
+            console.log(target.status.attrs)
+            //if target dead drop all the items in the map
+            if(target.status.attrs.hp <= 0){
+              target.status.items.forEach(item=>{
+                if(typeof item !== 'string'){
+                  item.eq = false
+                  this.players[pid].status.items.push(item)
+                }
+              })
+              this.map.places[atk.loc.x][atk.loc.y].monsters = []
+            }
+            this.updatePlace(this.map.places[atk.loc.x][atk.loc.y])
+            this.changeAttr(pid, this.players[pid], pid)
+            this.changeItems(pid, this.players[pid])
+          })
         }
       }
     }
@@ -563,9 +600,19 @@ class Game {
           this.ai(m, p)
         })
 
+        //add recover
+        if(p.status.attrs.hp < 100) p.status.attrs.hp += 1
+        this.changeAttr(pid, p)
         //update available actions
         this.changeActions(pid)
       })
+
+      //check game end
+      if(this.boss.mon.status.attrs.hp <= 0){
+        this.eachPlayer((p, pid)=>{
+          this.comm('gg', `Congratuation! You won! Socre: ${this.time}`)
+        })
+      }
     }
 
     this.comm('gameinfo', {time: this.time})
@@ -581,7 +628,7 @@ class Game {
 
       if(p.status.attrs.hp <= 0) this.death(p, m);
       else {
-        this.changeAttr(p.id, p)
+        this.changeAttr(p.id, p, monster.id)
       }
     })
   }
@@ -591,7 +638,7 @@ class Game {
     this.log(`${p.info.name} is killed by ${by.info.name}`);
     this.removePlayer(p.id);
 
-    this.comm('gg', `Game Over! You are killed by ${by.info.name}`)
+    this.comm('gg', `Game Over! You are killed by ${by.info.name}`, p.id)
   }
 
   eachPlayer(cb){
@@ -602,6 +649,14 @@ class Game {
 
   comm(e, m, id){
     if(this.socket) this.socket.to(id || this.id).emit(e, m)
+  }
+
+  updatePlace(place){
+      this.eachPlayer((p, pid)=>{
+        if(p.status.place.x == place.x && p.status.place.y === place.y){
+          this.comm('updatePlace', place, pid)
+        }
+      })
   }
 
   changePlace(pid, p, loc){
@@ -635,6 +690,7 @@ class Game {
       lobby:　this.lobby,
       logs: this.logs,
       time: this.time,
+      boss: this.boss,
       players: Object.keys(this.players).map(i=>{
         return {
           id: i,
@@ -661,7 +717,7 @@ class Game {
     if(!this.socket) this.socket = user.socket.nsp
 
     this.players[user.id] = new Character(user, this.time, user.id)
-
+    this.players[user.id].status.items.push(new Item('sword', 0, 10))
     user.socket.join(this.id,()=> {
       this.log(`Player ${user.info.name} join the game.`);
     });
@@ -671,11 +727,14 @@ class Game {
     })
 
     user.socket.on('gameaction', act=>{
-      this.players[user.id].status.nextTime = this.time + (8 - this.players[user.id].attr().spd)
       if(typeof act === 'object'){
-        this.actions[act.id].act(user.id, act)
+        if(this.actions[act.id].req(this.players[user.id])) {
+          this.actions[act.id].act(user.id, act)
+          this.players[user.id].status.nextTime = this.time + (5 - this.players[user.id].attr().spd)
+        }
       }else{
         this.actions[act].act(user.id)
+        this.players[user.id].status.nextTime = this.time + (5 - this.players[user.id].attr().spd)
       }
     })
 
@@ -710,8 +769,15 @@ class Game {
 
   }
 
-  changeAttr(pid, p){
-    this.comm('changeAttr', p.attr(), pid)
+  changeAttr(pid, p, by=false){
+    if(by){
+      this.comm('changeAttr', {
+        by,
+        attrs:p.attr()
+      }, pid)
+    }else{
+      this.comm('changeAttr', p.attr(), pid)
+    }
   }
 
   changeItems(pid, p){

@@ -1,3 +1,11 @@
+.character.atk {
+  animation: atk .5s linear;
+}
+
+.character.rev.atk {
+  animation: atkrev .5s linear;
+}
+
 .upAndDown {
   animation: kfUpAndDown 2s linear infinite alternate;
 }
@@ -6,6 +14,34 @@
 }
 .fadeInOut{
   animation: fadeInOut 1s;
+}
+
+@keyframes atk {
+  0% {
+    transform: translate(0,0);
+  }
+
+  50% {
+    transform: translate(5em,0);
+  }
+
+  100% {
+    transform: translate(0,0);
+  }
+}
+
+@keyframes atkrev {
+  0% {
+    transform: scaleX(-1) translate(0,0);
+  }
+
+  50% {
+    transform: scaleX(-1) translate(5em,0);
+  }
+
+  100% {
+    transform: scaleX(-1) translate(0,0);
+  }
 }
 
 @keyframes kfUpAndDown {

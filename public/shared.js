@@ -64,7 +64,7 @@ const areas = [
     5,
     15,
     'blue',
-    [],
+    [-1, -1, -1, 10, 20, 30, 40,50],
     [],
     [
       [2],
@@ -79,12 +79,12 @@ const areas = [
     5,
     15,
     'green',
-    [],
+    [-1, -1, -1, 10, 10, 20],
     [],
     [
       [2],
       [0],
-      [0,-1],
+      [-1],
       []
     ]
   ],
@@ -94,7 +94,7 @@ const areas = [
     5,
     15,
     '#EDC9AF',
-    [],
+    [5, 5, 5, 10, 10, 20],
     [],
     [
       [2],
@@ -109,7 +109,7 @@ const areas = [
     5,
     15,
     green[2],
-    [],
+    [-1, 10, 10, 10, 10, 30, 40, 50, 60],
     [],
     [
       [2],
@@ -124,7 +124,7 @@ const areas = [
     10,
     20,
     grounds[0],
-    [],
+    [-1, 10, 10, 10, 20, 30, 40, 50,60],
     [],
     [
       [2],
@@ -139,7 +139,7 @@ const areas = [
     4,
     5,
     grounds[4],
-    [],
+    [-1, -1, -1, 30, 40, 60],
     [],
     [
       [2],
@@ -292,7 +292,7 @@ var UTILS = Object.freeze({
 });
 
 const stories = [
-  'Your village lost the gift from god, you have to find it!'
+  'Warriors! We have to find the dark general and kill him!'
 ]
 
 var DATA = {
